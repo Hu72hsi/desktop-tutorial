@@ -1,0 +1,16 @@
+OTUID	Kingdom	Phylum	Class	Order	Family	Genus	Species
+ASV1	Spike	Spike	Spike	Spike	Spike	Spike	Spike
+ASV5	Fungi	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned
+ASV6	Fungi	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned
+ASV2	Fungi	Basidiomycota	Tremellomycetes	Filobasidiales	Filobasidiaceae	Filobasidium	Filobasidium_sp
+ASV3	Fungi	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned
+ASV8	Fungi	Basidiomycota	Tremellomycetes	Filobasidiales	Filobasidiaceae	Naganishia	Unassigned
+ASV4	Fungi	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned
+ASV10	Fungi	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned
+ASV9	Fungi	Basidiomycota	Tremellomycetes	Tremellales	Bulleribasidiaceae	Vishniacozyma	Vishniacozyma_carnescens
+ASV1152	Fungi	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned
+ASV28	Fungi	Basidiomycota	Tremellomycetes	Filobasidiales	Filobasidiaceae	Naganishia	Unassigned
+ASV39	Fungi	Ascomycota	Sordariomycetes	Hypocreales	Nectriaceae	Fusarium	Fusarium_sp
+ASV66	Fungi	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned
+ASV724	Fungi	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned	Unassigned
+

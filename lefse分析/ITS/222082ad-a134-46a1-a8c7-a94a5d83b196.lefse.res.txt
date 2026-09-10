@@ -1,0 +1,56 @@
+Biomarkernames	Log10AverageAbundance	EnrichedGroups	LDA	KW_Pvalue
+k__Fungi	5.877671510652875	SSP	5.472316258866884	4.095128711997331e-05
+k__Spike	5.9075497459260555	SST	5.472316258866884	4.095128711997331e-05
+k__Fungi.p__Ascomycota	4.704687241547503			-
+k__Fungi.p__Basidiomycota	5.471017288811566	SSP	5.152111015732059	0.0011061804801496802
+k__Fungi.p__Chytridiomycota	3.9392272411110567			-
+k__Fungi.p__Rozellomycota	3.712170527852231			-
+k__Fungi.p__Unassigned	5.605176538402627	SSP	5.138746216562114	0.00018414927124292863
+k__Spike.p__Spike	5.9075497459260555	SST	5.472316258866884	4.095128711997331e-05
+k__Fungi.p__Ascomycota.c__Dothideomycetes	4.270239339315564	SSP	3.9264991736588195	0.0021393914209492807
+k__Fungi.p__Ascomycota.c__Pezizomycetes	4.125549047163103	SSF	3.8332583530487274	2.0660640030261736e-07
+k__Fungi.p__Ascomycota.c__Sordariomycetes	4.433762192997841	SSP	4.183082179421152	0.0013568839048725726
+k__Fungi.p__Ascomycota.c__Unassigned	4.133988040125607	SST	3.550175747642379	0.03584845436163454
+k__Fungi.p__Basidiomycota.c__Tremellomycetes	5.471017288811566	SSP	5.152111015732059	0.0011061804801496802
+k__Fungi.p__Chytridiomycota.c__Spizellomycetes	3.9392272411110567			-
+k__Fungi.p__Rozellomycota.c__Unassigned	3.712170527852231			-
+k__Fungi.p__Unassigned.c__Unassigned	5.605176538402627	SSP	5.138746216562114	0.00018414927124292863
+k__Spike.p__Spike.c__Spike	5.9075497459260555	SST	5.472316258866884	4.095128711997331e-05
+k__Fungi.p__Ascomycota.c__Dothideomycetes.o__Capnodiales	3.2702308571579515	SSF	2.8590048217500095	0.002372051967952599
+k__Fungi.p__Ascomycota.c__Dothideomycetes.o__Pleosporales	4.243919590723082	SSP	3.9003381363498435	0.009397484982380319
+k__Fungi.p__Ascomycota.c__Pezizomycetes.o__Pezizales	4.125549047163103	SSF	3.8331911585203464	2.0660640030261736e-07
+k__Fungi.p__Ascomycota.c__Sordariomycetes.o__Hypocreales	4.433762192997841	SSP	4.183082179421152	0.0013568839048725726
+k__Fungi.p__Ascomycota.c__Unassigned.o__Unassigned	4.133988040125607	SST	3.550175747642378	0.03584845436163454
+k__Fungi.p__Basidiomycota.c__Tremellomycetes.o__Cystofilobasidiales	4.09547123922984			-
+k__Fungi.p__Basidiomycota.c__Tremellomycetes.o__Filobasidiales	5.421547541478236	SSP	5.104621816556897	0.0029072968080592673
+k__Fungi.p__Basidiomycota.c__Tremellomycetes.o__Tremellales	4.373066653099125			-
+k__Fungi.p__Chytridiomycota.c__Spizellomycetes.o__Spizellomycetales	3.9392272411110567			-
+k__Fungi.p__Rozellomycota.c__Unassigned.o__Unassigned	3.712170527852231			-
+k__Fungi.p__Unassigned.c__Unassigned.o__Unassigned	5.605176538402627	SSP	5.138746216562114	0.00018414927124292863
+k__Spike.p__Spike.c__Spike.o__Spike	5.9075497459260555	SST	5.472316258866884	4.095128711997331e-05
+k__Fungi.p__Ascomycota.c__Dothideomycetes.o__Capnodiales.f__Cladosporiaceae	3.2702308571579515	SSF	2.8590048217500095	0.002372051967952599
+k__Fungi.p__Ascomycota.c__Dothideomycetes.o__Pleosporales.f__Phaeosphaeriaceae	4.243919590723082	SSP	3.9003381363498435	0.009397484982380319
+k__Fungi.p__Ascomycota.c__Pezizomycetes.o__Pezizales.f__Pezizaceae	4.125549047163103	SSF	3.833421533910391	2.0660640030261736e-07
+k__Fungi.p__Ascomycota.c__Sordariomycetes.o__Hypocreales.f__Nectriaceae	4.433762192997841	SSP	4.183082179421152	0.0013568839048725726
+k__Fungi.p__Ascomycota.c__Unassigned.o__Unassigned.f__Unassigned	4.133988040125607	SST	3.550175747642378	0.03584845436163454
+k__Fungi.p__Basidiomycota.c__Tremellomycetes.o__Cystofilobasidiales.f__Mrakiaceae	4.09547123922984			-
+k__Fungi.p__Basidiomycota.c__Tremellomycetes.o__Filobasidiales.f__Filobasidiaceae	5.421547541478236	SSP	5.104621816556897	0.0029072968080592673
+k__Fungi.p__Basidiomycota.c__Tremellomycetes.o__Tremellales.f__Bulleribasidiaceae	4.373066653099125			-
+k__Fungi.p__Chytridiomycota.c__Spizellomycetes.o__Spizellomycetales.f__Unassigned	3.9392272411110567			-
+k__Fungi.p__Rozellomycota.c__Unassigned.o__Unassigned.f__Unassigned	3.712170527852231			-
+k__Fungi.p__Unassigned.c__Unassigned.o__Unassigned.f__Unassigned	5.605176538402627	SSP	5.138746216562114	0.00018414927124292863
+k__Spike.p__Spike.c__Spike.o__Spike.f__Spike	5.9075497459260555	SST	5.472316258866884	4.095128711997331e-05
+k__Fungi.p__Ascomycota.c__Dothideomycetes.o__Capnodiales.f__Cladosporiaceae.g__Davidiella	3.2702308571579515	SSF	2.8590048217500095	0.002372051967952599
+k__Fungi.p__Ascomycota.c__Dothideomycetes.o__Pleosporales.f__Phaeosphaeriaceae.g__Unassigned	4.243919590723082	SSP	3.9003381363498435	0.009397484982380319
+k__Fungi.p__Ascomycota.c__Pezizomycetes.o__Pezizales.f__Pezizaceae.g__Peziza	4.125549047163103	SSF	3.8334538593836793	2.0660640030261736e-07
+k__Fungi.p__Ascomycota.c__Sordariomycetes.o__Hypocreales.f__Nectriaceae.g__Fusarium	3.339481085004522	SSF	2.9268389624631554	0.00361100390602587
+k__Fungi.p__Ascomycota.c__Sordariomycetes.o__Hypocreales.f__Nectriaceae.g__Unassigned	4.401683466897683	SSP	4.163457981874433	0.009633184803661382
+k__Fungi.p__Ascomycota.c__Unassigned.o__Unassigned.f__Unassigned.g__Unassigned	4.133988040125607	SST	3.550175747642379	0.03584845436163454
+k__Fungi.p__Basidiomycota.c__Tremellomycetes.o__Cystofilobasidiales.f__Mrakiaceae.g__Mrakia	4.09547123922984			-
+k__Fungi.p__Basidiomycota.c__Tremellomycetes.o__Filobasidiales.f__Filobasidiaceae.g__Filobasidium	5.399688975405192			-
+k__Fungi.p__Basidiomycota.c__Tremellomycetes.o__Filobasidiales.f__Filobasidiaceae.g__Naganishia	4.301261778857415			-
+k__Fungi.p__Basidiomycota.c__Tremellomycetes.o__Tremellales.f__Bulleribasidiaceae.g__Vishniacozyma	4.373066653099125			-
+k__Fungi.p__Chytridiomycota.c__Spizellomycetes.o__Spizellomycetales.f__Unassigned.g__Unassigned	3.9392272411110567			-
+k__Fungi.p__Rozellomycota.c__Unassigned.o__Unassigned.f__Unassigned.g__Unassigned	3.712170527852231			-
+k__Fungi.p__Unassigned.c__Unassigned.o__Unassigned.f__Unassigned.g__Unassigned	5.605176538402627	SSP	5.138746216562114	0.00018414927124292863
+k__Spike.p__Spike.c__Spike.o__Spike.f__Spike.g__Spike	5.9075497459260555	SST	5.472316258866884	4.095128711997331e-05

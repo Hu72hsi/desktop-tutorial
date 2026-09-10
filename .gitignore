@@ -1,0 +1,16 @@
+# 参考数据库（过大，GitHub 单文件限制 100MB，需自行下载，见 README）
+database/
+
+# R 工作区临时文件
+.RData
+.Rhistory
+.Rapp.history
+.Ruserdata
+
+# 系统/临时文件
+Thumbs.db
+.DS_Store
+desktop.ini
+*.tmp
+*.temp
+*.log

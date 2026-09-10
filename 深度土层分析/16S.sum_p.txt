@@ -1,0 +1,12 @@
+Phylum	G.1	G.2	G.3	G.4	G.5
+Proteobacteria	23.2	27.8	31	27.1	37.4
+Actinobacteria	30	23.1	32.8	32.5	17.7
+Thaumarchaeota	10.9	6.68	4.59	8.47	9.72
+Bacteroidetes	7.68	8.77	5.26	4.96	5.51
+Chloroflexi	6.52	9.11	5.91	5.58	4
+Planctomycetes	5.21	5.18	3.82	3.48	3.45
+Firmicutes	6.51	2.17	5.61	4.83	1.83
+Saccharibacteria	2.82	3.62	2.37	2.43	5.36
+Euryarchaeota	0.625	1.45	1.46	4.68	4.34
+Acidobacteria	1.98	3.26	2.35	1.48	1.87
+Others	3.92817	7.66062	3.66386	3.20825	6.41122

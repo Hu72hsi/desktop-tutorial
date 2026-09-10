@@ -1,0 +1,446 @@
+#!/hwfssz1/ST_EARTH/P18Z10200N0112/software/03.Soft_ALL/R-4.0.2/bin Rscript
+# 程序功能：统计特征表中reads数小于10/20/30的ASVs数量
+# Functions: Number of ASVs with the number of reads less than 10/20/30 in the statistical feature table
+
+#options(warn = -1) # Turning off  warning
+
+args <- commandArgs(trailingOnly = TRUE)
+otutab = read.table(args[1], header=T, row.names=1, sep="\t", comment.char="", fill = TRUE)
+cat(dim(otutab)[2], " Samples\n")
+cat(dim(otutab)[1], " OTUs\n")
+cat(sum(otutab), " Reads\n")
+cat("\n")
+
+# calculate ASVs num whose read num in all samples < 10, <20, <30
+row_sum <- rowSums(otutab)
+cat("ASVs num whose read num in all samples <= 10, <=20, <=30:\n")
+cat("\t< 10 reads num: ", sum(row_sum<10)," (", round(sum(row_sum<10)*100/sum(row_sum),digits = 6), "%)\n")
+cat("\t< 20 reads num: ", sum(row_sum<20)," (", round(sum(row_sum<20)*100/sum(row_sum),digits = 6), "%)\n")
+cat("\t< 30 reads num: ", sum(row_sum<30)," (", round(sum(row_sum<30)*100/sum(row_sum),digits = 6), "%)\n")
+
+
+###Process the 515F/806R amplications, luoxinyue, 202108
+#sample=$1
+rootdir=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/project/03.Ruili/06.gut_CP_Actino/Actinorhizal
+outdir=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/project/03.Ruili/06.gut_CP_Actino/Actinorhizal/reads_prepare
+
+for sample in `cat rawSample.list`
+do
+# Make dir
+        if [ ! -d $outdir/$sample ];then mkdir $outdir/$sample ; fi
+##Truncate 5' primer (19 bp) and 3' primer and subsequant sequence ,and remove un-matching 3' primer reads.
+        cutadapt -a ATTAGAWACCCVHGTAGTCC -u 19 -e 0.15 -m 250 --too-short-output $outdir/$sample/${sample}.too.short.fq -o $outdir/$sample/${sample}.trimmed.fq.gz --untrimmed-output $outdir/$sample/${sample}.untrimmed.fq.gz $rootdir/RawData_16S/${sample}.fq.gz > $outdir/$sample/${sample}.rmprimer.log
+#Data filter, simultaneously transform to fasta and relable the sequences name
+#vsearch -fastq_filter $outdir/$sample/${sample}.trimmed.fq -fastq_maxee 1.0 -fastaout $outdir/$sample/${sample}.filtered.fa -fastqout_discarded $outdir/$sample/${sample}.filtered.discarded.fq -fastq_eeout -fastq_ascii 33 -relabel ${label}- 2>$outdir/$sample/${sample}.filter.log
+        SOAPnuke filter -1 $outdir/$sample/${sample}.trimmed.fq.gz  -C ${sample}.filtered.fq.gz -o $outdir/$sample -l 20 -q 0.15 -n 0.01 -T 3
+        fastqc $outdir/$sample/${sample}.filtered.fq.gz -o $outdir/$sample
+        gzip -d $outdir/$sample/${sample}.filtered.fq.gz
+        usearch -fastq_filter $outdir/$sample/${sample}.filtered.fq -fastq_maxee 1000.0 -fastaout $outdir/$sample/${sample}.filtered.fa -fastq_eeout -sample $sample
+        tags=`grep -c '>' $outdir/$sample/${sample}.filtered.fa`
+        if [ $tags -gt 50000 ]
+        then
+                usearch -fastx_subsample $outdir/$sample/${sample}.filtered.fa -sample_size 50000 -fastaout $outdir/$sample/${sample}.sub50000.fa
+        else
+                #cat $outdir/$sample/${sample}.filtered.fa > $outdir/$sample/${sample}.sub50000.fa
+                echo -e "$sample\t$tags" >> $outdir/bad.sample.list
+        fi
+done
+
+#vsearch -fastx_subsample $outdir/$sample/${sample}.filtered.fa -sample_size 50000 --relabel ${label}- -fastaout $outdir/$sample/${sample}.sub50000.fa
+#cat $outdir/*/*.sub50000.fa >> $rootdir/all.sub50000.fa
+
+#这一部分用usearch，只需两步，vsearch需要多部
+#usearch -fastx_uniques all.sub50000.fa -fastaout all.uniques.fa -sizeout -relabel Uniq_
+#Cluster OTU / Denoise Zotu, simultaneously remove chimeras and singlatons
+#mkdir uparse unoise
+#usearch -unoise3 all.uniques.fa -zotus raw.zotus.fa -tabbedout unoise/unoise3.txt
+#awk 'BEGIN {n=1}; />/ {print ">ASV" n; n++} !/>/ {print}' raw.zotus.fa > unoise/ZOTU.fa
+#usearch -cluster_otus all.uniques.fa -otus uparse/OTU.fa -uparseout uparse/uparse.txt -relabel OTU -minsize 2
+#Make Feature table, vsearch reads map ratio higher than usearch
+#vsearch --usearch_global all.sub50000.fa --db unoise/ZOTU.fa --id 0.97 --otutabout unoise/raw.Zotu.table.txt --biomout unoise/raw.Zotu.table.biom 2>unoise/make-table.log
+#vsearch --usearch_global all.sub50000.fa --db uparse/OTU.fa --id 0.97 --otutabout uparse/raw.otu.table.txt --biomout uparse/raw.otu.table.biom 2>uparse/make-table.log
+
+export PATH=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/software/anaconda3/envs/qiime2-2021.4/bin:$PATH
+#unoise
+cd /jdfssz1/ST_EARTH/P18Z10200N0114/P18Z10200N0112/luoxinyue/06.gut_CP_Actino/Actinorhizal/unoise
+qiime tools import --input-path ZOTU.fa --output-path raw.zotus.qza  --type 'FeatureData[Sequence]'
+qiime feature-classifier classify-sklearn --i-classifier /hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/project/07.SG/gg-13-8-99-515-806-nb-classifier.qza --i-reads raw.zotus.qza --p-confidence 0.8 --o-classification Zotu_taxonomy.qza
+qiime metadata tabulate  --m-input-file Zotu_taxonomy.qza  --o-visualization Zotu_taxonomy.qzv
+:<<!
+#1.prepare OTU tabel
+biom convert -i /hwfssz1/ST_AGRIC/P18Z10200N0112/USER/luoxinyue/project/01.citrus_amplicon/01.OTU_table/16S40000/16S.otu.table.txt -o OTU_raw_table.biom --table-type="OTU table" --to-json
+qiime tools import --input-path OTU_raw_table.biom --type 'FeatureTable[Frequency]' --input-format BIOMV100Format --output-path OTU_raw_table.qza
+qiime feature-table summarize --i-table OTU_raw_table.qza --o-visualization OTU_raw_table.qzv
+#479 (90.23%) samples' depth > 28800
+qiime feature-table filter-samples --i-table OTU_raw_table.qza --p-min-frequency 28800 --o-filtered-table sample-frequency-filtered-table.qza
+#Any features with a frequency of zero after sample filtering will also be removed.
+qiime feature-table summarize --i-table  sample-frequency-filtered-table.qza --o-visualization  sample-frequency-filtered-table.qzv
+#min depth 28808,480 samples,17685 OTUs
+
+#2.prepare 17685 OTU sequences, build phylogeny tree
+qiime tools export --input-path sample-frequency-filtered-table.qza --output-path sample-frequency-filtered-table
+/hwfssz1/ST_AGRIC/USER/yujin/software/python-3.6.5/bin/biom convert -i sample-frequency-filtered-table/feature-table.biom -o sample-frequency-filtered-table/feature-table.txt --to-tsv
+perl ../extract_transID.pl ../../16S.OTUs.fa 17685OTU.list
+tr 'atgc' 'ATGC' <ref_seq_for_qiime.fa >ref_seq_for_qiime.uppercase.fa
+qiime tools import --input-path ref_seq_for_qiime.uppercase.fa --output-path ref_sequences.qza  --type 'FeatureData[Sequence]'
+qiime phylogeny align-to-tree-mafft-fasttree --i-sequences ref_sequences.qza --o-alignment alignment.qza --o-masked-alignment masked_alignment.qza --o-tree tree.qza --o-rooted-tree rooted_tree.qza
+
+#3.稀疏曲线
+qiime diversity alpha-rarefaction --i-table sample-frequency-filtered-table.qza  --p-min-depth 1000 --p-max-depth 30000 --m-metadata-file metadata480.txt --p-steps 30 --p-metrics 'chao1' --o-visualization alpha_rarefaction_chao1_4.qzv
+!
+#物种注释
+#usearch -sintax /hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/project/03.Ruili/05.RS_ITS1-18_16S1-9/ITS/unoise/ZOTU.fa -db /hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/database/utax_reference_dataset_10.05.2021_fungi.fasta -tabbedout reads.sintax -strand both -sintax_cutoff 0.8  -threads 3
+#usearch -sintax /hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/project/03.Ruili/05.RS_ITS1-18_16S1-9/ITS/unoise/ZOTU.fa -db /hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/database/utax_reference_dataset_10.05.2021_fungi_Spike.fasta -tabbedout reads.sintax.spike -strand both -sintax_cutoff 0.8  -threads 3
+#将table转换为qiime格式
+#for j in p c o f g s; do usearch -sintax_summary reads.sintax -otutabin ITS.otu.filter.table.txt  -rank ${j}  -output sum_${j}.txt ; done
+#for j in c o f; do usearch -sintax_summary reads.sintax.spike-2 -otutabin ITS.otu.filter.table.txt  -rank ${j}  -output sum_spike_${j}.txt ; done
+for j in g s; do usearch -sintax_summary reads.sintax.spike-2 -otutabin ITS.otu.filter.table.txt  -rank ${j}  -output sum_spike_${j}.txt ; done
+
+#
+datadir=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/project/03.Ruili/06.gut_CP_Actino/Actinorhizal/reads_prepare
+outdir=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/project/03.Ruili/06.gut_CP_Actino/Actinorhizal/02.OTU_table
+rootdir=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/project/03.Ruili/06.gut_CP_Actino/Actinorhizal
+#for i in `cat 12sample.list`;do        cat $datadir/$i/${i}.filtered.rmPlant.fa > $datadir/$i/${i}.sub50000.fa ; done && \
+#for i in `cat Sample177.list` ; do cat $datadir/$i/*.sub50000.fa >> $outdir/all.sub50000.fa ; done && \
+#usearch -fastx_uniques all.sub50000.fa -fastaout all.uniques.fa -sizeout -relabel Uniq_ && \
+#vsearch --derep_fulllength all.sub50000.fa --output all.uniques.fa -sizeout -relabel Uniq_ && \
+#usearch -unoise3 all.uniques.fa -zotus raw.zotus.fa -tabbedout unoise3.txt && \
+#awk 'BEGIN {n=1}; />/ {print ">OTU" n; n++} !/>/ {print}' raw.zotus.fa > ZOTU.fa && \
+vsearch --usearch_global all.sub50000.fa --db ZOTU.fa --id 0.97 --otutabout raw.Zotu.table.txt --biomout raw.Zotu.table.biom 2>make-table.log && \
+
+export PATH=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/software/anaconda3/envs/qiime2-2021.4/bin:$PATH
+:<<!
+qiime tools import --input-path ZOTU.fa --output-path raw.zotus.qza  --type 'FeatureData[Sequence]'
+qiime feature-classifier classify-sklearn --i-classifier /hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/project/07.SG/gg-13-8-99-515-806-nb-classifier.qza --i-reads raw.zotus.qza --p-confidence 0.8 --o-classification Zotu_taxonomy0.8.qza
+qiime feature-classifier classify-sklearn --i-classifier /hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/project/07.SG/gg-13-8-99-515-806-nb-classifier.qza --i-reads raw.zotus.qza --p-confidence 0.95 --o-classification Zotu_taxonomy0.95.qza
+qiime metadata tabulate  --m-input-file Zotu_taxonomy0.8.qza  --o-visualization Zotu_taxonomy0.8.qzv
+qiime metadata tabulate  --m-input-file Zotu_taxonomy0.95.qza  --o-visualization Zotu_taxonomy0.95.qzv
+!
+#1.prepare OTU tabel
+qiime tools import --input-path raw.Zotu.table.biom --type 'FeatureTable[Frequency]' --input-format BIOMV100Format --output-path raw.Zotu.table.qza
+qiime feature-table summarize --i-table raw.Zotu.table.qza --o-visualization raw.Zotu.table.qzv
+qiime feature-table filter-features \
+  --i-table raw.Zotu.table.qza \
+  --p-min-samples 2 \
+  --p-min-frequency 20 \
+  --o-filtered-table feature-frequency-filtered-table.qza && \
+qiime taxa filter-table \
+  --i-table feature-frequency-filtered-table.qza \
+  --i-taxonomy Zotu_taxonomy0.8.qza \
+  --p-include Bacteria,Archaea \
+  --p-exclude mitochondria,chloroplast \
+  --o-filtered-table filtered.OTU.table.qza && \
+qiime feature-table summarize --i-table filtered.OTU.table.qza --o-visualization filtered.OTU.table.qzv
+
+export PATH=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/software/anaconda3/envs/qiime2-2021.4/bin:$PATH
+##去除Table中tags数过少的sample
+#Any features with a frequency of zero after sample filtering will also be removed
+:<<!
+qiime feature-table filter-samples --i-table filtered.OTU.table.qza --p-min-frequency 15000 --o-filtered-table sample-frequency-filtered-table.qza
+qiime feature-table filter-features \
+  --i-table sample-frequency-filtered-table.qza \
+  --p-min-samples 2 \
+  --p-min-frequency 20 \
+  --o-filtered-table Final-table1.qza && \
+qiime feature-table summarize --i-table Final-table1.qza --o-visualization Final-table1.qzv
+
+#基于filter table过滤sequences，并建树
+qiime feature-table filter-seqs --i-data raw.zotus.qza --i-table Final-table1.qza --o-filtered-data filtered-seqs.qza
+qiime feature-table tabulate-seqs  --i-data filtered-seqs.qza --o-visualization filtered-seqs.qzv
+if [ ! -d root ];then mkdir root ; fi
+qiime phylogeny align-to-tree-mafft-fasttree --i-sequences filtered-seqs.qza --o-alignment root/olignment.qza --o-masked-alignment root/masked_alignment.qza --o-tree root/tree.qza --o-rooted-tree root/rooted_tree.qza
+!
+qiime tools export \
+--input-path Final-table1.qza \
+--output-path exported-feature-table
+mv exported-feature-table/feature-table.biom $outdir
+rm -r exported-feature-table
+/hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/software/anaconda3/envs/qiime2-2021.4/bin/biom convert -i feature-table.biom -o Final-table.txt --to-tsv
+
+其实cut的-d选项的默认间隔符就是制表符，所以当你就是要使用制表符的时候，完全就可以省略-d选项，而直接用－f来取域就可以了
+cut -f 1 qzv >qzv
+
+
+
+
+#jincanzhi
+#去重复和singleton序列
+vsearch --derep_fulllength 16S.all.fa  --output temp/uniques.fa  --relabel Uni --minuniquesize 50 --sizeout
+
+#UNOISE算法
+/hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/usearch -unoise3 temp/uniques.fa  -zotus temp/zotus.fa
+sed 's/Zotu/ASV_/g' temp/zotus.fa > temp/unoise_otus.fa
+
+#去嵌合体
+vsearch --uchime_ref temp/unoise_otus.fa -db /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/database/amplicon/rdp_16s_v16.fa --nonchimeras result/raw/unoise_otus_rdp.fa
+vsearch --uchime_ref temp/unoise_otus.fa -db /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/database/amplicon/silva_16s_v123.fa --nonchimeras result/raw/unoise_otus_silva.fa
+
+#生成特征表
+vsearch --usearch_global 16S.all.fa --db result/raw/unoise_otus_rdp.fa  --otutabout result/raw/unoise_otutab_rdp.txt --id 0.97 --threads 4
+vsearch --usearch_global 16S.all.fa --db result/raw/unoise_otus_silva.fa  --otutabout result/raw/unoise_otutab_silva.txt --id 0.97 --threads 4
+sed -i 's/\r//' result/raw/unoise_otutab_rdp.txt
+sed -i 's/\r//' result/raw/unoise_otutab_silva.txt
+
+#按物种注释筛选特征表
+#更快
+vsearch --sintax otu.fa --db /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/database/amplicon/rdp_16s_v16.fa --tabbedout result/raw/unoise.rdp.otus.sintax --sintax_cutoff 0.6
+#更慢
+vsearch --sintax otu.fa --db /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/database/amplicon/silva_16s_v123.fa --tabbedout result/raw/unoise.silva.otus.sintax --sintax_cutoff 0.6
+
+/jdfssz1/ST_EARTH/P18Z10200N0112/jincanzhi/software/miniconda3/bin/Rscript /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/EasyMicrobiome/script/otutab_filter_nonBac.R --input result/raw/unoise_otutab_rdp.txt --taxonomy result/raw/unoise.rdp.otus.sintax --output result/unoise_otutab_nonBac.rdp.txt --stat result/raw/unoise_otutab_nonBac.rdp.stat --discard result/raw/unoise_otus_nonBac.rdp.sintax.discard
+/jdfssz1/ST_EARTH/P18Z10200N0112/jincanzhi/software/miniconda3/bin/Rscript /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/EasyMicrobiome/script/otutab_filter_nonBac.R --input result/raw/unoise_otutab_silva.txt --taxonomy result/raw/unoise.silva.otus.sintax --output result/unoise_otutab_nonBac.silva.txt --stat result/raw/unoise_otutab_nonBac.silva.stat --discard result/raw/unoise_otus_nonBac.silva.sintax.discard
+
+#筛选特征表对应序的列和物种注释
+cut -f 1 result/unoise_otutab_nonBac.rdp.txt | tail -n+2 > result/unoise_otutab_nonBac.rdp.id
+cut -f 1 result/unoise_otutab_nonBac.silva.txt | tail -n+2 > result/unoise_otutab_nonBac.silva.id
+
+usearch -fastx_getseqs result/raw/unoise_otus_rdp.fa  -labels result/unoise_otutab_nonBac.rdp.id -fastaout result/unoise_otutab_nonBac.rdp.fa
+awk 'NR==FNR{a[$1]=$0}NR>FNR{print a[$1]}'  result/raw/unoise.rdp.otus.sintax result/unoise_otutab_nonBac.rdp.id  > result/unoise.rdp.otus.sintax
+sed -i 's/\t$/\td:Unassigned/' result/unoise.rdp.otus.sintax
+usearch -otutab_stats result/unoise_otutab_nonBac.rdp.txt  -output result/unoise_otutab_nonBac.rdp.stat
+
+
+usearch -fastx_getseqs result/raw/unoise_otus_silva.fa  -labels result/unoise_otutab_nonBac.silva.id -fastaout result/unoise_otutab_nonBac.silva.fa
+awk 'NR==FNR{a[$1]=$0}NR>FNR{print a[$1]}'  result/raw/unoise.silva.otus.sintax result/unoise_otutab_nonBac.silva.id  > result/unoise.silva.otus.sintax
+sed -i 's/\t$/\td:Unassigned/' result/unoise.silva.otus.sintax
+usearch -otutab_stats result/unoise_otutab_nonBac.silva.txt  -output result/unoise_otutab_nonBac.silva.stat
+
+#注释文件格式修改
+cut -f 1,4 result/unoise.rdp.otus.sintax |sed 's/\td/\tk/;s/:/__/g;s/,/;/g;s/"//g;s/\/Chloroplast//' > result/rdp.taxonomy2.txt
+cut -f 1,4 result/unoise.silva.otus.sintax |sed 's/\td/\tk/;s/:/__/g;s/,/;/g;s/"//g;s/\/Chloroplast//' > result/silva.taxonomy2.txt
+
+awk 'BEGIN{OFS=FS="\t"}{delete a;a["k"]="Unassigned";a["p"]="Unassigned";a["c"]="Unassigned";a["o"]="Unassigned";a["f"]="Unassigned";a["g"]="Unassigned";a["s"]="Unassigned";split($2,x,";");for(i in x){split(x[i],b,"__");a[b[1]]=b[2];} print $1,a["k"],a["p"],a["c"],a["o"],a["f"],a["g"],a["s"];}' result/rdp.taxonomy2.txt > temp/rdp.otus.tax
+sed 's/;/\t/g;s/.__//g;' temp/rdp.otus.tax|cut -f 1-8 | sed '1s/^/OTUID\tKingdom\tPhylum\tClass\tOrder\tFamily\tGenus\tSpecies\n/' >result/rdp.taxonomy.txt
+
+awk 'BEGIN{OFS=FS="\t"}{delete a;a["k"]="Unassigned";a["p"]="Unassigned";a["c"]="Unassigned";a["o"]="Unassigned";a["f"]="Unassigned";a["g"]="Unassigned";a["s"]="Unassigned";split($2,x,";");for(i in x){split(x[i],b,"__");a[b[1]]=b[2];} print $1,a["k"],a["p"],a["c"],a["o"],a["f"],a["g"],a["s"];}' result/silva.taxonomy2.txt > temp/silva.otus.tax
+sed 's/;/\t/g;s/.__//g;' temp/silva.otus.tax|cut -f 1-8 | sed '1s/^/OTUID\tKingdom\tPhylum\tClass\tOrder\tFamily\tGenus\tSpecies\n/' >result/silva.taxonomy.txt
+
+#alpha 多样性
+#ITS
+mkdir -p result/alpha
+/jdfssz1/ST_EARTH/P18Z10200N0112/jincanzhi/software/miniconda3/bin/Rscript /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/EasyMicrobiome/script/otutab_rare.R --input result/unoise_otutab_nonFungi.unite.txt --seed 1 --normalize result/alpha/ITS.otutab_rare.txt --output result/alpha/ITS.vegan.txt
+usearch -otutab_stats result/alpha/ITS.otutab_rare.txt -output result/alpha/ITS.otutab_rare.stat
+
+usearch -alpha_div result/alpha/ITS.otutab_rare.txt -output result/alpha/ITS.alpha.txt
+
+usearch -alpha_div_rare result/alpha/ITS.otutab_rare.txt -output result/alpha/ITS.alpha_rare.txt  -method without_replacement
+
+/jdfssz1/ST_EARTH/P18Z10200N0112/jincanzhi/software/miniconda3/bin/Rscript /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/EasyMicrobiome/script/otu_mean.R --input result/unoise_otutab_nonFungi.unite.txt  -d metadata.txt --group Group --thre 0  --output result/alpha/ITS.otutab_mean.txt
+
+awk 'BEGIN{OFS=FS="\t"}{if(FNR==1) {for(i=2;i<=NF;i++) a[i]=$i;} else {for(i=2;i<=NF;i++) if($i>0.1) print $1, a[i];}}'  result/alpha/ITS.otutab_mean.txt > result/alpha/ITS.otu_group_exist.txt
+
+#beta
+mkdir -p result/beta/
+usearch -cluster_agg result/unoise_otutab_nonFungi.unite.fa -treeout result/unoise_otus.ITS.tree
+usearch -beta_div result/alpha/ITS.otutab_rare.txt -tree result/unoise_otus.ITS.tree -filename_prefix result/beta/ITS_
+
+
+#按级分类
+mkdir result/tax
+for i in p c o f g;do usearch -sintax_summary result/raw/unoise.unite.otus.sintax -otutabin result/alpha/ITS.otutab_rare.txt -rank ${i} -output result/tax/ITS.sum_${i}.txt ;done
+sed -i 's/(//g;s/)//g;s/\"//g;s/\#//g;s/\/Chloroplast//g' result/tax/ITS.sum_*.txt
+
+
+
+#记录
+#make_list
+a=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/hucankun/project/soybean_16s/smsj
+for i in $( ls $a )
+do
+   if [ $( echo ${i:0:6} ) == "Desert" ]
+   then
+      b=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/hucankun/project/soybean_16s/smsj/$i/forward
+      c=$( echo ${i:7:3} )
+      if [ ! -d list/$c ];then
+         mkdir -p list/$c
+         touch list/$c/$i.sample.list
+      fi
+      for j in $( ls $b )
+      do
+         j=$( echo ${j%%.*} )
+         echo "$j" >> list/$c/$i.sample.list
+         echo "$j" >> $c.sample.list
+      done
+   fi
+done
+
+
+#reads_prepare
+rootdir=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/hucankun/project/soybean_16s/smsj/
+outdir=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/hucankun/project/soybean_16s/smsj/16S.reads_prepare
+#outdir=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/hucankun/project/soybean_16s/smsj/ITS.reads_prepare
+for sample in `cat $rootdir/16S.sample.list`
+#for sample in `cat $rootdir/ITS.sample.list`
+do
+    if [ ! -d $outdir/$sample ];then mkdir $outdir/$sample ; fi
+
+    cutadapt -u 29 -a ATTAGAWACCCVHGTAGTCC -e 0.15 -m 250 --too-short-output $outdir/$sample/${sample}.too.short_f.fq -o $outdir/$sample/${sample}.trimmed_f.fq.gz --untrimmed-output $outdir/$sample/${sample}.untrimmed_f.fq.gz $rootdir/*/forward/${sample}.fq.gz >> $outdir/$sample/${sample}.rmprimer.log
+
+    cutadapt -u 30 -a TTACCGCGGCKGCTGGCAC -e 0.15 -m 250 --too-short-output $outdir/$sample/${sample}.too.short_r.fq -o $outdir/$sample/${sample}.trimmed_r.fq.gz --untrimmed-output $outdir/$sample/${sample}.untrimmed_r.fq.gz $rootdir/*/reverse/${sample}.fq.gz >> $outdir/$sample/${sample}.rmprimer.log
+
+    #cutadapt -u 32 -a GCATCGATGAAGAACGCAGC -e 0.15 -m 250 --too-short-output $outdir/$sample/${sample}.too.short_f.fq -o $outdir/$sample/${sample}.trimmed_f.fq.gz --untrimmed-output $outdir/$sample/${sample}.untrimmed_f.fq.gz $rootdir/*/forward/${sample}.fq.gz >> $outdir/$sample/${sample}.rmprimer.log
+
+    #cutadapt -u 30 -a TTACTTCCTCTAAATGACCAAG -e 0.15 -m 250 --too-short-output $outdir/$sample/${sample}.too.short_r.fq -o $outdir/$sample/${sample}.trimmed_r.fq.gz --untrimmed-output $outdir/$sample/${sample}.untrimmed_r.fq.gz $rootdir/*/reverse/${sample}.fq.gz >> $outdir/$sample/${sample}.rmprimer.log
+
+    vsearch --fastx_revcomp $outdir/$sample/${sample}.trimmed_r.fq.gz --fastqout $outdir/$sample/${sample}.r.fq
+    gzip $outdir/$sample/${sample}.r.fq
+    cat $outdir/$sample/${sample}.trimmed_f.fq.gz $outdir/$sample/${sample}.r.fq.gz >$outdir/$sample/${sample}.all.fq.gz
+
+    #vsearch --fastq_mergepairs $outdir/$sample/${sample}.trimmed_f.fq.gz --reverse $outdir/$sample/${sample}.trimmed_r.fq.gz  --fastqout $outdir/$sample/${sample}.merged.fq --relabel ${i}
+    SOAPnuke filter -1 $outdir/$sample/${sample}.all.fq.gz  -C ${sample}.filtered.fq.gz -o $outdir/$sample -l 20 -q 0.15 -n 0.01 -T 3
+
+    /hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/software/fastqc $outdir/$sample/${sample}.filtered.fq.gz -o $outdir/$sample
+
+    gzip -d $outdir/$sample/${sample}.filtered.fq.gz
+    /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/usearch -fastq_filter $outdir/$sample/${sample}.filtered.fq -fastq_maxee 1000.0 -fastaout $outdir/$sample/${sample}.filtered.fa -fastq_eeout -sample $sample
+    tags=`grep -c '>' $outdir/$sample/${sample}.filtered.fa`
+    if [ $tags -gt 50000 ]
+    then
+         /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/usearch -fastx_subsample $outdir/$sample/${sample}.filtered.fa -sample_size 50000 -fastaout $outdir/$sample/${sample}.sub50000.fa
+    elif [ $tags -gt 20000 ]
+    then
+           cat $outdir/$sample/${sample}.filtered.fa > $outdir/$sample/${sample}.sub50000.fa
+    else
+           echo -e "$sample\t$tags" >> $outdir/bad.sample.list
+        fi
+        rm $outdir/$sample/${sample}.r.fq.gz
+done
+
+cat $outdir/*/*.sub50000.fa >> $rootdir/16S.all.sub50000.fa
+#cat $outdir/*/*.sub50000.fa >> $rootdir/ITS.all.sub50000.fa
+
+#make_table
+rootdir=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/hucankun/project/soybean_16s/smsj
+outdir=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/hucankun/project/soybean_16s/smsj/result/raw
+temp=/hwfssz1/ST_EARTH/P18Z10200N0112/USER/hucankun/project/soybean_16s/smsj/temp
+#统计总条数
+#tags=`grep -c '>' $rootdir/16S.all.sub50000.fa`
+#echo "$tags/1000000"|bc
+#2
+#tags=`grep -c '>' $rootdir/ITS.all.sub50000.fa`/
+#echo "$tags/1000000"|bc
+#0
+
+#去重复
+/hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/usearch -fastx_uniques $rootdir/16S.all.sub50000.fa -fastaout $temp/16S.all.uniques.fa -sizeout -relabel Uniq_ -minuniquesize 2
+/hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/usearch -fastx_uniques $rootdir/ITS.all.sub50000.fa -fastaout $temp/ITS.all.uniques.fa -sizeout -relabel Uniq_ -minuniquesize 2
+
+#ASV去噪并去嵌合
+#mkdir uparse unoise
+/hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/usearch -unoise3 $temp/16S.all.uniques.fa -zotus $outdir/16S.raw.zotus.fa -tabbedout $rootdir/unoise/16S.unoise3.txt
+awk 'BEGIN {n=1}; />/ {print ">ASV" n; n++} !/>/ {print}' $outdir/16S.raw.zotus.fa > $rootdir/unoise/16S.ZOTU.fa
+/hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/usearch -unoise3 $temp/ITS.all.uniques.fa -zotus $outdir/ITS.raw.zotus.fa -tabbedout $rootdir/unoise/ITS.unoise3.txt
+awk 'BEGIN {n=1}; />/ {print ">ASV" n; n++} !/>/ {print}' $outdir/ITS.raw.zotus.fa > $rootdir/unoise/ITS.ZOTU.fa
+
+#生成特征表,用 vsearch reads map ratio比usearch好
+vsearch --usearch_global $rootdir/16S.all.sub50000.fa --db $rootdir/unoise/16S.ZOTU.fa --id 0.97 --otutabout $rootdir/unoise/16S.raw.Zotu.table.txt --biomout $rootdir/unoise/16S.raw.Zotu.table.biom 2>$rootdir/unoise/16S.make-table.log
+vsearch --usearch_global $rootdir/ITS.all.sub50000.fa --db $rootdir/unoise/ITS.ZOTU.fa --id 0.97 --otutabout $rootdir/unoise/ITS.raw.Zotu.table.txt --biomout $rootdir/unoise/ITS.raw.Zotu.table.biom 2>$rootdir/unoise/ITS.make-table.log
+
+#生成特征表
+vsearch --usearch_global $rootdir/16S.all.sub50000.fa --db $rootdir/unoise/16S.ZOTU.fa  --otutabout $outdir/16S.unoise_zotutable.txt --id 0.97 --threads 4
+sed -i 's/\r//' $outdir/16S.unoise_zotutable.txt
+vsearch --usearch_global $rootdir/ITS.all.sub50000.fa --db $rootdir/unoise/ITS.ZOTU.fa  --otutabout $outdir/ITS.unoise_zotutable.txt --id 0.97 --threads 4
+sed -i 's/\r//' $outdir/ITS.unoise_zotutable.txt
+
+#按物种注释筛选特征表
+#更快
+#vsearch --sintax 16S.all.fa --db /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/database/amplicon/rdp_16s_v16.fa --tabbedout result/raw/unoise.rdp.otus.sintax --sintax_cutoff 0.6
+#更慢
+#vsearch --sintax 16S.all.fa --db /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/database/amplicon/silva_16s_v123.fa --tabbedout result/raw/unoise.silva.otus.sintax --sintax_cutoff 0.6
+
+#vsearch --sintax $rootdir/unoise/16S.ZOTU.fa --db /hwfssz1/ST_EARTH/P18Z10200N0112/USER/hucankun/database/silva_16s_v123_spike.fa --tabbedout $outdir/16S.unoise.silva.sintax.spike --sintax_cutoff 0.8 --threads 3
+#vsearch --sintax $rootdir/unoise/ITS.ZOTU.fa --db /hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/database/utax_reference_dataset_10.05.2021_fungi_Spike.fasta --tabbedout $outdir/ITS.unoise.silva.sintax.spike --sintax_cutoff 0.8 --threads 3
+
+#/jdfssz1/ST_EARTH/P18Z10200N0112/jincanzhi/software/miniconda3/bin/Rscript /hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/EasyMicrobiome/script/otutab_filter_nonBac.R --input $outdir/16S.unoise_zotutable.txt --taxonomy $outdir/16S.unoise.silva.sintax.spike --output $rootdir/result/16S.unoise_zotutab_nonBac_silve.txt --stat $outdir/16S.unoise_zotutab_nonBac_silve.stat --discard $outdir/16S.unoise_zotutab_nonBac_silve.sintax.discard
+/jdfssz1/ST_EARTH/P18Z10200N0112/jincanzhi/software/miniconda3/bin/Rscript /hwfssz1/ST_EARTH/P18Z10200N0112/USER/hucankun/software/script/otutab_filter_nonFungi.R
+
+
+#筛选特征表对应序的列和物种注释
+#cut -f 1 $rootdir/result/16S.unoise_zotutab_nonBac_silve.txt | tail -n+2 > $rootdir/result/16S.unoise_zotutab_nonBac_silve.id
+cut -f 1 $rootdir/result/ITS.unoise_zotutab_nonFungi_silve.txt | tail -n+2 > $rootdir/result/ITS.unoise_zotutab_nonFungi_silve.id
+#/hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/usearch -fastx_getseqs $rootdir/unoise/16S.ZOTU.fa -labels $rootdir/result/16S.unoise_zotutab_nonBac_silve.id -fastaout $rootdir/result/16S.unoise_zotutab_nonBac_silve.fa
+#awk 'NR==FNR{a[$1]=$0}NR>FNR{print a[$1]}'  $outdir/16S.unoise.silva.sintax.spike $rootdir/result/16S.unoise_zotutab_nonBac_silve.id  > $rootdir/result/16S.unoise.silva.sintax
+#sed -i 's/\t$/\td:Unassigned/' $rootdir/result/16S.unoise.silva.sintax
+#/hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/usearch -otutab_stats $rootdir/result/16S.unoise_zotutab_nonBac_silve.txt -output $rootdir/result/16S.unoise_zotutab_nonBac_silve.stat
+
+
+/hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/usearch -fastx_getseqs $rootdir/unoise/ITS.ZOTU.fa -labels $rootdir/result/ITS.unoise_zotutab_nonFungi_silve.id -fastaout $rootdir/result/ITS.unoise_zotutab_nonFungi_silve.fa
+awk 'NR==FNR{a[$1]=$0}NR>FNR{print a[$1]}'  $outdir/ITS.unoise.silva.sintax.spike $rootdir/result/ITS.unoise_zotutab_nonFungi_silve.id  > $rootdir/result/ITS.unoise.silva.sintax
+sed -i 's/\t$/\td:Unassigned/' $rootdir/result/ITS.unoise.silva.sintax
+/hwfssz1/ST_EARTH/P18Z10200N0112/USER/jincanzhi/software/usearch -otutab_stats $rootdir/result/ITS.unoise_zotutab_nonFungi_silve.txt -output $rootdir/result/ITS.unoise_zotutab_nonFungi_silve.stat
+
+
+#注释文件格式修改
+#cut -f 1,4 $rootdir/result/16S.unoise.silva.sintax |sed 's/\td/\tk/;s/:/__/g;s/,/;/g;s/"//g;s/\/Chloroplast//' > $rootdir/result/16S_silva_taxonomy2.txt
+cut -f 1,4 $rootdir/result/ITS.unoise.silva.sintax |sed 's/\td/\tk/;s/:/__/g;s/,/;/g;s/"//g;s/\/Chloroplast//' > $rootdir/result/ITS_silva_taxonomy2.txt
+
+#awk 'BEGIN{OFS=FS="\t"}{delete a;a["k"]="Unassigned";a["p"]="Unassigned";a["c"]="Unassigned";a["o"]="Unassigned";a["f"]="Unassigned";a["g"]="Unassigned";a["s"]="Unassigned";split($2,x,";");for(i in x){split(x[i],b,"__");a[b[1]]=b[2];} print $1,a["k"],a["p"],a["c"],a["o"],a["f"],a["g"],a["s"];}' $rootdir/result/16S_silva_taxonomy2.txt > $temp/16S_silva_otus.tax
+#sed 's/;/\t/g;s/.__//g;' $temp/16S_silva_otus.tax|cut -f 1-8 | sed '1s/^/OTUID\tKingdom\tPhylum\tClass\tOrder\tFamily\tGenus\tSpecies\n/' >$rootdir/result/16S_silva_taxonomy.txt
+
+awk 'BEGIN{OFS=FS="\t"}{delete a;a["k"]="Unassigned";a["p"]="Unassigned";a["c"]="Unassigned";a["o"]="Unassigned";a["f"]="Unassigned";a["g"]="Unassigned";a["s"]="Unassigned";split($2,x,";");for(i in x){split(x[i],b,"__");a[b[1]]=b[2];} print $1,a["k"],a["p"],a["c"],a["o"],a["f"],a["g"],a["s"];}' $rootdir/result/ITS_silva_taxonomy2.txt > $temp/ITS_silva_otus.tax
+sed 's/;/\t/g;s/.__//g;' $temp/ITS_silva_otus.tax|cut -f 1-8 | sed '1s/^/OTUID\tKingdom\tPhylum\tClass\tOrder\tFamily\tGenus\tSpecies\n/' >$rootdir/result/ITS_silva_taxonomy.txt
+
+
+#barcode拆分
+java -jar /jdfssz1/ST_EARTH/P18Z10200N0112/wenjiawen/software/Trimmomatic-0.38/trimmomatic-0.38.jar SE -phred33 /zfssz8/CNGB_DATA/BGISEQ01/MGI2000/P18Z10200N0112_Temp/PL2207290427/220827_Veq001_V350111971_L01_PL2207290427//V350111971_L01_162.fq.gz ZY-A1.clean.fq CROP:10
+
+#直接在sh运行
+sort -r all.barcode.f.fa | uniq -c >all.barcode.f.txt
+sort -r all.barcode.r.fa | uniq -c >all.barcode.r.txt
+cat all.barcode.f.txt | sort -n -r -k 1 >all.barcode.f.txt
+cat all.barcode.r.txt | sort -n -r -k 1 >all.barcode.r.txt
+
+整篇文章小写转化为大写
+打开文件后，无须进入命令行模式。
+键入:gggUG
+
+/hwfssz1/ST_EARTH/P18Z10200N0112/USER/luoxinyue/software/usearch -search_global 16Sspike -db otus.fa -strand both -id 0.9 -alnout 16Sspike.aln -blast6out 16Sspike..blast
+
+   
+
+G2：主要ASV26    G3：主要ASV6     LW1：      主要是 24     27
+ASV6 Rozellomycota Unassigned      Unassigned      Unassigned      Unassigned      Unassigned
+ASV26  Unassigned      Unassigned      Unassigned      Unassigned      Unassigned      Unassigned
+ASV24  Unassigned      Unassigned      Unassigned      Unassigned      Unassigned      Unassigned
+ASV27  Unassigned      Unassigned      Unassigned      Unassigned      Unassigned      Unassigned
+
+
+qsub -cwd -l vf=1g,p=1 -q st.q -P P18Z10200N0112 -binding linear:1 make_tuble.sh#投递命令
+
+$grep -5 'parttern' inputfile //打印匹配行的前后5行
+ 
+$grep -C 5 'parttern' inputfile //打印匹配行的前后5行
+ 
+$grep -A 5 'parttern' inputfile //打印匹配行的后5行
+ 
+$grep -B 5 'parttern' inputfile //打印匹配行的前5行
+
+awk '/^>/ { gsub(/_/,":"); print $0 }' sh_general_release_dynamic_s_27.10.2022_dev.fasta
+#替换下划线为:  ,只输出表头
+awk ' { gsub(/_/,":"); print $0 }' sh_general_release_dynamic_s_27.10.2022_dev.fasta
+#将数据库调整为自己需要的形式
+awk '{ gsub(/__/,":"); print $0 }' sh_general_release_dynamic_s_27.10.2022_dev.fasta >ITS_1.fa
+awk '{ gsub(/;/,","); print $0 }' ITS_1.fa >ITS2.fa
+awk '{ gsub(/\|k:/,";k:"); print $0 }' ITS2.fa >ITS_2022.fa
+awk '{ gsub(/;k:/,";tax=k:"); print $0 }' ITS_2022.fa >ITS_dev_2022.fa
+awk '/>/ {print $0";"} !/>/ {print}' ITS_dev_2022.fa>ITS_dev.fa
+awk '{gsub(/,..unidentified(.)*;$/,";");print $0}' ITS_dev.fa >ITS_dev_2022.fa
+unidentified
+
+# 设置输入文件OTU表和物种注释文件位置
+otutab_dir = "result/raw/ITS.unoise_otutable.txt"
+sintax_dir = "result/raw/ITS.unoise.silva.sintax.spike.new"
+
+# 设置输出文件筛选OTU表、及筛选物种注释和统计文件位置
+output_dir = "result/ITS.unoise_otutab_nonFungi_silve.txt"
+stat_dir = "result/raw/ITS.unoise_otutab_nonFungi_silve.stat"
+
+# 读取OTU表和sintax物种注释
+otutab = read.table(opts$input, header=T, row.names=1, sep="\t", comment.char="")
+sintax = read.table(opts$taxonomy, header=F, row.names=1, sep="\t", fill = TRUE, comment.char="")
+
+print(paste0("Input feature table is ", opts$input))
+print(paste0("Input sintax taxonomy table is ", opts$taxonomy))
+
+
+

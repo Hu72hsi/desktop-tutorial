@@ -1,0 +1,10 @@
+Phylum	G1	G2	G3	G4	G5
+Basidiomycota	68.9	4.61	54.7	46.5	1.86
+Ascomycota	8.39	1.72	9.64	7.74	1.12
+Glomeromycota	0.134	3.78	0.0884	0.219	0.406
+Rozellomycota	0.00655	0.599	0.0491	0.0295	0.108
+Olpidiomycota	0	0.102	0.00655	0.00327	0.00327
+Chytridiomycota	0.00655	0.00655	0.00982	0.00982	0.0589
+Aphelidiomycota	0	0	0.00982	0.0262	0
+Blastocladiomycota	0	0.00327	0	0	0
+Mucoromycota	0.00327	0	0	0	0

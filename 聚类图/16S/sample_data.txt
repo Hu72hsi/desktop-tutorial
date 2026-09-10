@@ -1,0 +1,6 @@
+SampleID	group	group_sum
+大豆	KO	1
+葵花	KO	1
+高粱	WT	2
+狼尾草	WT	2
+土豆	KO	1
